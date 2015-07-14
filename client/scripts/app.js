@@ -4,8 +4,10 @@
 
 window.friendsList = [];
 window.currentRoom = '';
-window.roomsList = [];
-window.lastTimeRetrieved = 0;
+window.roomsList = [0];
+window.date = new Date(Date.now());
+window.lastTimeRetrieved = window.date.toISOString();
+
 
 // --------------------------------------------
 // -------------- APP DEFINITION --------------
@@ -25,8 +27,10 @@ app.init = function() {
   
   $("#send .submit").on('click', app.handleSubmit);
 
+  $('#roomSelect').on('change', app.filterMessages);
 
   // TODO: load initial batch of messages and initialize lastTimeRetrieved
+  setInterval(app.fetch, 2000);
 };
 
 app.send = function(message) {
@@ -47,7 +51,8 @@ app.send = function(message) {
 app.fetch = function() {
   var result = $.ajax({
     //url: 'https://api.parse.com/1/classes/chatterbox?'+encodeURIComponent('where={"username":"shelley"}'),
-    url: 'https://api.parse.com/1/classes/chatterbox?'+encodeURIComponent('where={"createdAt":{"$gt":}'),
+    url: 'https://api.parse.com/1/classes/chatterbox?'+encodeURIComponent('where={"createdAt":{"$gt":"'
+          + lastTimeRetrieved + '"}}'),
     // url: 'https://api.parse.com/1/classes/chatterbox',
     type: 'GET',
     contentType: 'application/json',
@@ -55,13 +60,21 @@ app.fetch = function() {
       limit:100000
     },
     success: function (data) {
-      console.log('chatterbox: fetched results');
-      console.log(data);
+      var lastResultNum = data.results.length -1;
+      if (lastResultNum >= 0) {
+        lastTimeRetrieved = data.results[lastResultNum].createdAt;
+      }
+
+      _.each(data.results, function(result) {
+        app.addMessage(result);
+      });
+
     },
     error: function (data) {
       console.error('chatterbox: Failed to retrieve results');
     }
   });
+
 };
 
 app.clearMessages = function() {
@@ -69,11 +82,18 @@ app.clearMessages = function() {
 };
 
 app.addMessage = function(message) {
-  var username = message.username;
-  $('#chats').append("<p>" + '<a href="#" class="username">'+username+'</a>' + "</p>")
+  var username = escapeHtml(message.username);
+  var text = escapeHtml(message.text);
+  var room = escapeHtml(message.roomname);
+  $('#chats').prepend("<p class='"+room+"''>" + '<a href="#" class="username">'+username+'</a>' + text + "</p>")
     .on('click', function() {
       app.addFriend(username);
     });
+
+  if (roomsList.indexOf(room) === -1) {
+    roomsList.push(room);
+    $('#roomSelect').append("<option id='option"+room+"''>" + room + "</option>");
+  } 
 
 };
 
@@ -89,6 +109,8 @@ app.addRoom = function(roomName) {
     $('#option'+roomName).attr('selected','selected');
   }
 
+  currentRoom = roomName;
+
   // TODO: refresh to show new room.
 };
 
@@ -103,15 +125,25 @@ app.addFriend = function(friendName) {
 
 
 app.handleSubmit = function() {
-  console.log('running handleSubmit');
-  var messageText = $('#message').text();
+  var messageText = $('#message').val();
   var message = {
     username: getQueryVariable('username'),
     text: messageText,
-    room: currentRoom
+    roomname: currentRoom
   };
+  app.send(message);
+};
 
-}
+app.filterMessages = function() {
+  var currentIndex = $('#roomSelect')[0].selectedIndex;
+  var roomName = roomsList[currentIndex];
+  if (currentIndex === 0) {
+    $('#chats p').show();
+  } else {
+    $('#chats :not(.'+roomName+')').hide();
+    $('#chats .'+roomName).show();
+  }
+};
 
 
 // --------------------------------------------
