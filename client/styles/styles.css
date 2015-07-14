@@ -22,19 +22,7 @@ body {
     padding: 5px;
 }
 
-#main h1 span {
-    font-style:italic;
-}
-
-#main ul {
-    padding-left: 20px;
-}
-
-#main .error {
-    border: 1px solid red;
-    background: #FDEFF0;
-    padding: 20px;
-}
+#main h1 span {i
 
 #main .success {
     margin-top: 25px;
@@ -82,3 +70,5 @@ form input[type=text] {
 .spinner img {
     padding: 10px;
 }
+
+
