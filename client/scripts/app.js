@@ -22,7 +22,6 @@ app.init = function() {
   // handle reqs to add new rooms
   $("#addRoom").on('click', function() {
     app.addRoom($('#newRoomName').val());
-
   });
   
   $("#send .submit").on('click', app.handleSubmit);
@@ -50,10 +49,8 @@ app.send = function(message) {
 
 app.fetch = function() {
   var result = $.ajax({
-    //url: 'https://api.parse.com/1/classes/chatterbox?'+encodeURIComponent('where={"username":"shelley"}'),
     url: 'https://api.parse.com/1/classes/chatterbox?'+encodeURIComponent('where={"createdAt":{"$gt":"'
           + lastTimeRetrieved + '"}}'),
-    // url: 'https://api.parse.com/1/classes/chatterbox',
     type: 'GET',
     contentType: 'application/json',
     data: {
@@ -77,25 +74,65 @@ app.fetch = function() {
 
 };
 
-app.clearMessages = function() {
-  $('#chats').children().remove();
-};
-
 app.addMessage = function(message) {
   var username = escapeHtml(message.username);
   var text = escapeHtml(message.text);
   var room = escapeHtml(message.roomname);
-  $('#chats').prepend("<p class='"+room+"''>" + '<a href="#" class="username">'+username+'</a>' + text + "</p>")
+  var isFriend = app.isFriend(username);
+  var openStyle = isFriend ? '<b>' : '';
+  var closeStyle = isFriend ? '</b>' : '';
+
+  var currentRoomStyle = (room === app.returnCurrentRoom()) ? '':'style="display:none;"';
+
+  $("<p class='"+room+"'"+currentRoomStyle+">" + '<a href="#" class="username '+ username+' ">' + openStyle +username+ closeStyle +'</a>' + text + "</p>")
+    .prependTo($('#chats'))
     .on('click', function() {
       app.addFriend(username);
     });
-
   if (roomsList.indexOf(room) === -1) {
     roomsList.push(room);
     $('#roomSelect').append("<option id='option"+room+"''>" + room + "</option>");
   } 
 
 };
+
+
+app.handleSubmit = function() {
+  var messageText = $('#message').val();
+  var message = {
+    username: getQueryVariable('username'),
+    text: messageText,
+    roomname: currentRoom
+  };
+  app.send(message);
+};
+
+app.clearMessages = function() {
+  $('#chats').children().remove();
+};
+
+
+// ---------------- SOCIALIZING ----------------
+
+app.isFriend = function(username) {
+  for (var i = 0; i < friendsList.length; i++) {
+    if (friendsList[i] === username) {
+      return true;
+    }
+  } 
+  return false;
+}
+
+app.addFriend = function(friendName) {
+  if (friendsList.indexOf(friendName) === -1) {
+    friendsList.push(friendName);
+
+    $('#chats p .'+friendName).css('font-weight','bold')
+  }
+};
+
+
+// ---------------- ROOMS ----------------
 
 app.addRoom = function(roomName) {
   console.log('adding '+ roomName);
@@ -111,40 +148,25 @@ app.addRoom = function(roomName) {
 
   currentRoom = roomName;
 
-  // TODO: refresh to show new room.
-};
-
-
-
-app.addFriend = function(friendName) {
-  if (friendsList.indexOf(friendName) === -1) {
-    friendsList.push(friendName);
-  }
-};
-
-
-
-app.handleSubmit = function() {
-  var messageText = $('#message').val();
-  var message = {
-    username: getQueryVariable('username'),
-    text: messageText,
-    roomname: currentRoom
-  };
-  app.send(message);
+  app.filterMessages();
 };
 
 app.filterMessages = function() {
   var currentIndex = $('#roomSelect')[0].selectedIndex;
-  var roomName = roomsList[currentIndex];
+  var roomName = app.returnCurrentRoom();
   if (currentIndex === 0) {
-    $('#chats p').show();
+    $('#chats p,a').show();
   } else {
     $('#chats :not(.'+roomName+')').hide();
     $('#chats .'+roomName).show();
+    $('#chats .'+roomName +' a').show();
   }
 };
 
+app.returnCurrentRoom = function() {
+  var currentIndex = $('#roomSelect')[0].selectedIndex;
+  return roomsList[currentIndex];
+}
 
 // --------------------------------------------
 // -------------- HELPER METHODS --------------
